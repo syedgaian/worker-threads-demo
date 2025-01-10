@@ -1,30 +1,22 @@
 import express from "express";
+import { Worker } from "node:worker_threads";
 
 const app = express();
 
-function delay(time: number) {
-	return new Promise((resolve) => setTimeout(resolve, time));
-}
-
-function blockForTime(time: number) {
-	const start = Date.now();
-	while (Date.now() - start < time) {
-		// Busy-wait loop to block the event loop
-	}
-}
-function calculateCount() {
-	return new Promise((resolve, reject) => {
-		let counter = 0;
-		for (let i = 0; i < 20_000_000_000; i++) {
-			counter++;
-		}
-		resolve(counter);
-	});
-}
 app.get("/", async (req, res) => {
-	console.log("processing started");
-	const counter = await calculateCount();
-	res.send("Hello" + counter);
+	console.log("Started Processing");
+	const worker = new Worker("./src/worker.ts", {
+		workerData: { start: 1, end: 1e6 },
+	});
+	worker.on("message", (data) => {
+		res.status(200).send(`result is ${data}`);
+	});
+	worker.on("error", (msg) => {
+		res.status(404).send(`An error occurred: ${msg}`);
+	});
+	worker.on("exit", (code) => {
+		console.log(`Worker exited with code: ${code}`);
+	});
 });
 
 app.listen(3000, () => {
